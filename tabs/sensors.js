@@ -15,11 +15,33 @@ const i18n = require('./../js/localization');
 const BitHelper = require('./../js/bitHelper');
 
 TABS.sensors = {};
-TABS.sensors.initialize = function (callback) {
-    var self = this;
 
+TABS.sensors.initialize = function (callback) {
     if (GUI.active_tab != 'sensors') {
         GUI.active_tab = 'sensors';
+    }
+    GUI.load(path.join(__dirname, "sensors.html"), function load_html() {
+        TABS.sensors._render(function () { GUI.content_ready(callback); });
+    });
+};
+
+TABS.sensors._render = function (callback) {
+    var self = this;
+
+    // FC.SENSOR_DATA is null before first FC connection — initialize with zeros so graphs work offline
+    if (!FC.SENSOR_DATA) {
+        FC.SENSOR_DATA = {
+            gyroscope: [0, 0, 0],
+            accelerometer: [0, 0, 0],
+            magnetometer: [0, 0, 0],
+            altitude: 0,
+            barometer: 0,
+            sonar: 0,
+            air_speed: 0,
+            kinematics: [0.0, 0.0, 0.0],
+            temperature: [0, 0, 0, 0, 0, 0, 0, 0],
+            debug: [0, 0, 0, 0]
+        };
     }
 
     function initSensorData(){
@@ -211,25 +233,25 @@ TABS.sensors.initialize = function (callback) {
         }
     }
 
-    GUI.load(path.join(__dirname, "sensors.html"), function load_html() {
+    
         // translate to user-selected language
        i18n.localize();;
 
-        // disable graphs for sensors that are missing
-        var checkboxes = $('.tab-sensors .info .checkboxes input');
-        if (!BitHelper.bit_check(FC.CONFIG.activeSensors, 2)) { // mag
-            checkboxes.eq(2).prop('disabled', true);
-        }
-        if (!BitHelper.bit_check(FC.CONFIG.activeSensors, 4)) { // sonar
-            checkboxes.eq(4).prop('disabled', true);
-        }
-
-        if (!BitHelper.bit_check(FC.CONFIG.activeSensors, 6)) { // airspeed
-            checkboxes.eq(5).prop('disabled', true);
-        }
-
-        if (!BitHelper.bit_check(FC.CONFIG.activeSensors, 7)) {
-            checkboxes.eq(6).prop('disabled', true);
+        // disable graphs for sensors that are missing (FC.CONFIG is null when not connected)
+        if (FC.CONFIG) {
+            var checkboxes = $('.tab-sensors .info .checkboxes input');
+            if (!BitHelper.bit_check(FC.CONFIG.activeSensors, 2)) { // mag
+                checkboxes.eq(2).prop('disabled', true);
+            }
+            if (!BitHelper.bit_check(FC.CONFIG.activeSensors, 4)) { // sonar
+                checkboxes.eq(4).prop('disabled', true);
+            }
+            if (!BitHelper.bit_check(FC.CONFIG.activeSensors, 6)) { // airspeed
+                checkboxes.eq(5).prop('disabled', true);
+            }
+            if (!BitHelper.bit_check(FC.CONFIG.activeSensors, 7)) {
+                checkboxes.eq(6).prop('disabled', true);
+            }
         }
 
         $('.tab-sensors .info .checkboxes input').on('change', function () {
@@ -560,8 +582,8 @@ TABS.sensors.initialize = function (callback) {
            debugWin.window.getDebugTrace = function () { return FC.DEBUG_TRACE || ''; };
         });
 
-        GUI.content_ready(callback);
-    });
+        if (callback) callback();
+    
 };
 
 TABS.sensors.cleanup = function (callback) {

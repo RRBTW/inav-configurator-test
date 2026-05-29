@@ -3470,188 +3470,11 @@ TABS.osd.initialize = function (callback) {
         GUI.active_tab = 'osd';
     }
 
-    function save_to_eeprom() {
-        console.log('save_to_eeprom');
-        MSP.send_message(MSPCodes.MSP_EEPROM_WRITE, false, false, function () {
-            GUI.log(i18n.getMessage('eepromSaved'));
-        });
-    }
+    
 
     HARDWARE.update(function () {
         GUI.load(path.join(__dirname, "osd.html"), Settings.processHtml(function () {
-            // translate to user-selected language
-           i18n.localize();
-
-            // Open modal window
-            OSD.GUI.jbox = new jBox('Modal', {
-                width: 750,
-                height: 300,
-                position: {y:'bottom'},
-                offset: {y:-50},
-                closeButton: 'title',
-                animation: false,
-                attach: $('#fontmanager'),
-                title: 'OSD Font Manager',
-                content: $('#fontmanagercontent')
-            });
-
-            $('a.save').on('click', function () {
-                Settings.saveInputs(save_to_eeprom);
-            });
-
-            // Initialise guides checkbox
-            isGuidesChecked = store.get('showOSDGuides', false);
-
-            // Setup switch indicators
-            $(".osdSwitchInd_channel option").each(function() {
-                $(this).text("Ch " + $(this).text());
-            });
-
-            // Function when text for switch indicators change
-            $('.osdSwitchIndName').on('keyup', function() {
-                // Make sure that the switch hint only contains A to Z
-                let testExp = new RegExp('^[A-Za-z0-9]');
-                let testText = $(this).val();
-                if (testExp.test(testText.slice(-1))) {
-                    $(this).val(testText.toUpperCase().slice(0, 4));
-                } else {
-                    $(this).val(testText.slice(0, -1));
-                }
-
-                // Update the OSD preview
-                refreshOSDSwitchIndicators();
-            });
-
-            // Function to update the OSD layout when the switch text alignment changes
-            $("#switchIndicators_alignLeft").on('change', function() {
-                refreshOSDSwitchIndicators();
-            });
-
-            // Functions for when pan servo settings change
-            $('#osdPanServoIndicatorShowDegrees').on('change', function() {
-                // Update the OSD preview
-                updatePanServoPreview();
-            });
-
-            $('#panServoOutput').on('change', function() {
-                // Update the OSD preview
-                updatePanServoPreview();
-            });
-
-            // Function for when text for craft name changes
-            $('#craft_name').on('keyup', function() {
-                // Make sure that the craft name only contains A to Z, 0-9, spaces, and basic ASCII symbols
-                let testExp = new RegExp('^[A-Za-z0-9 !_,:;=@#\\%\\&\\-\\*\\^\\(\\)\\.\\+\\<\\>\\[\\]]');
-                let testText = $(this).val();
-                if (testExp.test(testText.slice(-1))) {
-                    $(this).val(testText.toUpperCase());
-                } else {
-                    $(this).val(testText.slice(0, -1));
-                }
-
-                // Update the OSD preview
-                updatePilotAndCraftNames();
-            });
-
-            $('#pilot_name').on('keyup', function() {
-                // Make sure that the pilot name only contains A to Z, 0-9, spaces, and basic ASCII symbols
-                let testExp = new RegExp('^[A-Za-z0-9 !_,:;=@#\\%\\&\\-\\*\\^\\(\\)\\.\\+\\<\\>\\[\\]]');
-                let testText = $(this).val();
-                if (testExp.test(testText.slice(-1))) {
-                    $(this).val(testText.toUpperCase());
-                } else {
-                    $(this).val(testText.slice(0, -1));
-                }
-
-                // Update the OSD preview
-                updatePilotAndCraftNames();
-            });
-
-            // font preview window
-            var $preview = $('.font-preview');
-
-            //  init structs once, also clears current font
-            FONT.initData();
-
-            var $fontPicker = $('.fontbuttons button');
-            $fontPicker.on('click', function () {
-                if (!$(this).data('font-file')) {
-                    return;
-                }
-                $fontPicker.removeClass('active');
-                $(this).addClass('active');
-                $.get('./resources/osd/analogue/' + $(this).data('font-file') + '.mcm', function (data) {
-                    FONT.parseMCMFontFile(data);
-                    FONT.preview($preview);
-                    OSD.GUI.update();
-                });
-                store.set('osd_font', $(this).data('font-file'));
-            });
-
-            // load the last selected font when we change tabs
-            var osd_font = store.get('osd_font', false);
-            var previous_font_button;
-            if (osd_font) {
-                previous_font_button = $('.fontbuttons button[data-font-file="' + osd_font + '"]');
-                if (previous_font_button.attr('data-font-file') == undefined) previous_font_button = undefined;
-            }
-
-            if (typeof previous_font_button == "undefined") {
-                $fontPicker.first().trigger( "click" );
-            } else {
-                previous_font_button.trigger( "click" );
-            }
-
-
-            $('button.load_font_file').on('click', function () {
-                $fontPicker.removeClass('active');
-                FONT.openFontFile().then(function () {
-                    FONT.preview($preview);
-                    OSD.GUI.update();
-                });
-            });
-
-            // font upload
-            $('a.flash_font').on('click', function () {
-                if (!GUI.connect_lock) { // button disabled while flashing is in progress
-                    var progressLabel = $('.progressLabel');
-                    var progressBar = $('.progress');
-                    var uploading = i18n.getMessage('uploadingCharacters');
-                    progressLabel.text(uploading);
-                    var progressCallback = function(done, total, percentage) {
-                        progressBar.val(percentage);
-                        if (done == total) {
-                            progressLabel.text(i18n.getMessage('uploadedCharacters'), [total]);
-                        } else {
-                            progressLabel.text(uploading + ' (' + done + '/' + total + ')');
-                        }
-                    }
-                    FONT.upload(progressCallback);
-                }
-            });
-
-            $('.update_preview').on('change', function () {
-                if (OSD.data) {
-                    // Force an OSD redraw by saving any element
-                    // with a small delay, to make sure the setting
-                    // change is performance before the OSD starts
-                    // the full redraw.
-                    // This will also update all previews
-                    setTimeout(function() {
-                        OSD.GUI.saveItem({id: 0});
-                    }, 100);
-                }
-            });
-
-            $('#useCraftnameForMessages').on('change', function() {
-                OSD.GUI.updateDjiMessageElements(this.checked);
-            });
-
-            if(semver.gte(FC.CONFIG.flightControllerVersion, '7.1.0')) {
-                mspHelper.loadOsdCustomElements(createCustomElements);
-            }
-
-            GUI.content_ready(callback);
+            TABS.osd._render(function () { GUI.content_ready(callback); });
         }));
     });
 };
@@ -4195,6 +4018,190 @@ function updatePanServoPreview() {
 
     OSD.GUI.updatePreviews();
 }
+
+TABS.osd._render = function (callback) {
+    function save_to_eeprom() {
+        console.log('save_to_eeprom');
+        MSP.send_message(MSPCodes.MSP_EEPROM_WRITE, false, false, function () {
+            GUI.log(i18n.getMessage('eepromSaved'));
+        });
+    }
+
+    // translate to user-selected language
+           i18n.localize();
+
+            // Open modal window
+            OSD.GUI.jbox = new jBox('Modal', {
+                width: 750,
+                height: 300,
+                position: {y:'bottom'},
+                offset: {y:-50},
+                closeButton: 'title',
+                animation: false,
+                attach: $('#fontmanager'),
+                title: 'OSD Font Manager',
+                content: $('#fontmanagercontent')
+            });
+
+            $('a.save').on('click', function () {
+                Settings.saveInputs(save_to_eeprom);
+            });
+
+            // Initialise guides checkbox
+            isGuidesChecked = store.get('showOSDGuides', false);
+
+            // Setup switch indicators
+            $(".osdSwitchInd_channel option").each(function() {
+                $(this).text("Ch " + $(this).text());
+            });
+
+            // Function when text for switch indicators change
+            $('.osdSwitchIndName').on('keyup', function() {
+                // Make sure that the switch hint only contains A to Z
+                let testExp = new RegExp('^[A-Za-z0-9]');
+                let testText = $(this).val();
+                if (testExp.test(testText.slice(-1))) {
+                    $(this).val(testText.toUpperCase().slice(0, 4));
+                } else {
+                    $(this).val(testText.slice(0, -1));
+                }
+
+                // Update the OSD preview
+                refreshOSDSwitchIndicators();
+            });
+
+            // Function to update the OSD layout when the switch text alignment changes
+            $("#switchIndicators_alignLeft").on('change', function() {
+                refreshOSDSwitchIndicators();
+            });
+
+            // Functions for when pan servo settings change
+            $('#osdPanServoIndicatorShowDegrees').on('change', function() {
+                // Update the OSD preview
+                updatePanServoPreview();
+            });
+
+            $('#panServoOutput').on('change', function() {
+                // Update the OSD preview
+                updatePanServoPreview();
+            });
+
+            // Function for when text for craft name changes
+            $('#craft_name').on('keyup', function() {
+                // Make sure that the craft name only contains A to Z, 0-9, spaces, and basic ASCII symbols
+                let testExp = new RegExp('^[A-Za-z0-9 !_,:;=@#\\%\\&\\-\\*\\^\\(\\)\\.\\+\\<\\>\\[\\]]');
+                let testText = $(this).val();
+                if (testExp.test(testText.slice(-1))) {
+                    $(this).val(testText.toUpperCase());
+                } else {
+                    $(this).val(testText.slice(0, -1));
+                }
+
+                // Update the OSD preview
+                updatePilotAndCraftNames();
+            });
+
+            $('#pilot_name').on('keyup', function() {
+                // Make sure that the pilot name only contains A to Z, 0-9, spaces, and basic ASCII symbols
+                let testExp = new RegExp('^[A-Za-z0-9 !_,:;=@#\\%\\&\\-\\*\\^\\(\\)\\.\\+\\<\\>\\[\\]]');
+                let testText = $(this).val();
+                if (testExp.test(testText.slice(-1))) {
+                    $(this).val(testText.toUpperCase());
+                } else {
+                    $(this).val(testText.slice(0, -1));
+                }
+
+                // Update the OSD preview
+                updatePilotAndCraftNames();
+            });
+
+            // font preview window
+            var $preview = $('.font-preview');
+
+            //  init structs once, also clears current font
+            FONT.initData();
+
+            var $fontPicker = $('.fontbuttons button');
+            $fontPicker.on('click', function () {
+                if (!$(this).data('font-file')) {
+                    return;
+                }
+                $fontPicker.removeClass('active');
+                $(this).addClass('active');
+                $.get('./resources/osd/analogue/' + $(this).data('font-file') + '.mcm', function (data) {
+                    FONT.parseMCMFontFile(data);
+                    FONT.preview($preview);
+                    OSD.GUI.update();
+                });
+                store.set('osd_font', $(this).data('font-file'));
+            });
+
+            // load the last selected font when we change tabs
+            var osd_font = store.get('osd_font', false);
+            var previous_font_button;
+            if (osd_font) {
+                previous_font_button = $('.fontbuttons button[data-font-file="' + osd_font + '"]');
+                if (previous_font_button.attr('data-font-file') == undefined) previous_font_button = undefined;
+            }
+
+            if (typeof previous_font_button == "undefined") {
+                $fontPicker.first().trigger( "click" );
+            } else {
+                previous_font_button.trigger( "click" );
+            }
+
+
+            $('button.load_font_file').on('click', function () {
+                $fontPicker.removeClass('active');
+                FONT.openFontFile().then(function () {
+                    FONT.preview($preview);
+                    OSD.GUI.update();
+                });
+            });
+
+            // font upload
+            $('a.flash_font').on('click', function () {
+                if (!GUI.connect_lock) { // button disabled while flashing is in progress
+                    var progressLabel = $('.progressLabel');
+                    var progressBar = $('.progress');
+                    var uploading = i18n.getMessage('uploadingCharacters');
+                    progressLabel.text(uploading);
+                    var progressCallback = function(done, total, percentage) {
+                        progressBar.val(percentage);
+                        if (done == total) {
+                            progressLabel.text(i18n.getMessage('uploadedCharacters'), [total]);
+                        } else {
+                            progressLabel.text(uploading + ' (' + done + '/' + total + ')');
+                        }
+                    }
+                    FONT.upload(progressCallback);
+                }
+            });
+
+            $('.update_preview').on('change', function () {
+                if (OSD.data) {
+                    // Force an OSD redraw by saving any element
+                    // with a small delay, to make sure the setting
+                    // change is performance before the OSD starts
+                    // the full redraw.
+                    // This will also update all previews
+                    setTimeout(function() {
+                        OSD.GUI.saveItem({id: 0});
+                    }, 100);
+                }
+            });
+
+            $('#useCraftnameForMessages').on('change', function() {
+                OSD.GUI.updateDjiMessageElements(this.checked);
+            });
+
+            if(semver.gte(FC.CONFIG.flightControllerVersion, '7.1.0')) {
+                mspHelper.loadOsdCustomElements(createCustomElements);
+            }
+
+            if (callback) callback();
+
+};
 
 TABS.osd.cleanup = function (callback) {
     PortHandler.flush_callbacks();

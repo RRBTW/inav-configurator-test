@@ -24,6 +24,7 @@ var GUI_control = function () {
         'firmware_flasher',
         'mission_control',
         'sitl',
+        'osd_sensors',
         'help'
     ];
     this.defaultAllowedTabsWhenConnected = [
@@ -39,6 +40,7 @@ var GUI_control = function () {
         'onboard_logging',
         'outputs',
         'pid_tuning',
+        'osd_sensors',
         'ports',
         'receiver',
         'sensors',
