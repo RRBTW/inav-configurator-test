@@ -11,7 +11,8 @@ const mspHelper = require('./../js/msp/MSPHelper');
 const CONFIGURATOR = require('./../js/data_storage');
 
 // Подтягиваем оригинальные вкладки — они регистрируют TABS.osd._render / TABS.sensors._render
-require('./osd');
+// HARDWARE экспортируется из osd.js; нужен для инициализации возможностей железа при подключении
+const { HARDWARE } = require('./osd');
 require('./sensors');
 
 TABS.osd_sensors = {};
@@ -27,12 +28,11 @@ TABS.osd_sensors.initialize = function (callback) {
     const doLoad = function () {
         GUI.load(path.join(__dirname, "osd_sensors.html"), function () {
 
-            const sensorsHtml = fs.readFileSync(path.join(__dirname, "sensors.html"), 'utf-8');
-            $('#osd_sensors_sensors').html(sensorsHtml);
-
             if (connected) {
                 const osdHtml = fs.readFileSync(path.join(__dirname, "osd.html"), 'utf-8');
                 $('#osd_sensors_osd').html(osdHtml);
+                const sensorsHtml = fs.readFileSync(path.join(__dirname, "sensors.html"), 'utf-8');
+                $('#osd_sensors_sensors').html(sensorsHtml);
             }
 
             i18n.localize();
@@ -47,22 +47,12 @@ TABS.osd_sensors.initialize = function (callback) {
                     });
                 })();
             } else {
-                // Without FC: show placeholder in OSD panel and activate Sensors tab by default
-                $('#osd_sensors_osd').html(
-                    '<div style="padding:40px;text-align:center;color:#888;">' +
-                    '<p style="font-size:1.2em;">Connect to FC to access OSD settings</p>' +
-                    '</div>'
-                );
-                // Switch active subtab to Sensors
-                $('.subtab__header_label[for="osd_sensors_osd"]').removeClass('subtab__header_label--current');
-                $('.subtab__header_label[for="osd_sensors_sensors"]').addClass('subtab__header_label--current');
-                $('#osd_sensors_osd').removeClass('subtab__content--current');
-                $('#osd_sensors_sensors').addClass('subtab__content--current');
-
-                TABS.sensors._render(function () {
-                    tabs.init($('.tab-osd_sensors'));
-                    GUI.content_ready(callback);
-                });
+                // Without FC: show placeholder for both subtabs, no MSP calls
+                const placeholder = '<div style="padding:40px;text-align:center;color:#888;"><p style="font-size:1.2em;">Connect to FC to use this panel</p></div>';
+                $('#osd_sensors_osd').html(placeholder);
+                $('#osd_sensors_sensors').html(placeholder);
+                tabs.init($('.tab-osd_sensors'));
+                GUI.content_ready(callback);
             }
         });
     };
@@ -80,7 +70,8 @@ TABS.osd_sensors.cleanup = function (callback) {
     if (TABS.osd && typeof TABS.osd.cleanup === 'function') {
         TABS.osd.cleanup(function () {});
     }
-    if (TABS.sensors && typeof TABS.sensors.cleanup === 'function') {
+    // sensors.cleanup calls connection.emptyOutputBuffer() — only safe when connected
+    if (TABS.sensors && typeof TABS.sensors.cleanup === 'function' && CONFIGURATOR.connection) {
         TABS.sensors.cleanup(function () {});
     }
     if (callback) callback();

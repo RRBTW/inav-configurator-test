@@ -4215,3 +4215,5 @@ TABS.osd.cleanup = function (callback) {
 
     if (callback) callback();
 };
+
+module.exports = { HARDWARE };

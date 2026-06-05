@@ -6,6 +6,9 @@ Store.initRenderer();
 
 require('@electron/remote/main').initialize();
 
+// Must be before app.on('ready') for CDP remote debugging to work
+app.commandLine.appendSwitch('remote-debugging-port', '9222');
+
 const usbBootloaderIds =  [
   { vendorId: 1155, productId: 57105}, 
   { vendorId: 11836, productId: 57105}
